@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Combine, ArrowRight, Sparkles, Loader2, AlertCircle } from 'lucide-react';
 import { combineTOCs } from '../lib/api';
 import { TOCViewer } from '../components/TOCViewer';
@@ -38,7 +38,7 @@ const DEFAULT_TOC_1 = JSON.stringify([
 
 const DEFAULT_TOC_2 = JSON.stringify([
     {
-        "concept_id": "3",
+        "concept_id": "1",
         "label": "Where JavaScript Runs",
         "short_description": "Introduces JavaScript execution environments.",
         "source_url": "https://example.com/javascript-explained-web-alive",
@@ -53,10 +53,30 @@ export default function Home() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    useEffect(() => {
+        const storedToc1 = sessionStorage.getItem('dedupe_toc1');
+        const storedToc2 = sessionStorage.getItem('dedupe_toc2');
+        const storedCombined = sessionStorage.getItem('dedupe_combined');
+
+        if (storedToc1) setInput1(storedToc1);
+        if (storedToc2) setInput2(storedToc2);
+        if (storedCombined) {
+            try {
+                setCombinedResult(JSON.parse(storedCombined));
+            } catch (e) {
+                console.error("Failed to parse stored combined TOC", e);
+            }
+        }
+    }, []);
+
     const handleCombine = async () => {
         setLoading(true);
         setError(null);
         setCombinedResult(null);
+
+        // Save inputs explicitly to session storage
+        sessionStorage.setItem('dedupe_toc1', input1);
+        sessionStorage.setItem('dedupe_toc2', input2);
 
         try {
             let json1, json2;
@@ -73,6 +93,8 @@ export default function Home() {
 
             const result = await combineTOCs(json1, json2);
             setCombinedResult(result.combinedToc);
+            // Save result explicitly to session storage
+            sessionStorage.setItem('dedupe_combined', JSON.stringify(result.combinedToc));
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred');
         } finally {
@@ -134,6 +156,19 @@ export default function Home() {
                                 {loading ? 'Combining...' : 'Combine'}
                             </span>
                         </button>
+
+                        <button
+                            onClick={() => {
+                                // Save current state before navigating
+                                sessionStorage.setItem('dedupe_toc1', input1);
+                                sessionStorage.setItem('dedupe_toc2', input2);
+                                window.location.href = '/compare';
+                            }}
+                            className="group relative w-full lg:w-auto px-6 py-3 bg-gray-800 border border-purple-500/30 rounded-xl font-medium text-purple-300 hover:bg-gray-700/50 hover:text-white hover:border-purple-500/50 transition-all"
+                        >
+                            Compare Steps
+                        </button>
+
                         <div className="hidden lg:flex flex-col items-center text-gray-600 gap-2">
                             <ArrowRight className="w-6 h-6 rotate-90 lg:rotate-0" />
                         </div>
